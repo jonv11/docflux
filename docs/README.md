@@ -4,10 +4,10 @@ This directory contains technical and contributor-facing documentation for DocFl
 
 ## Index
 
-- Architecture: `docs/architecture.md`
-- Supported formats and fidelity notes: `docs/supported-formats.md`
-- CLI reference and examples: `docs/cli-usage.md`
-- Development and test workflow: `docs/development-guidelines.md`
+- Architecture: [architecture.md](architecture.md)
+- Supported formats and fidelity notes: [supported-formats.md](supported-formats.md)
+- CLI reference and examples: [cli-usage.md](cli-usage.md)
+- Development and test workflow: [development-guidelines.md](development-guidelines.md)
 
 ## Community Docs
 
