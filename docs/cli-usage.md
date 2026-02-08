@@ -1,9 +1,13 @@
 # CLI Usage
 
-DocFlux CLI command:
+
+docflux command:
+
+docflux <source-format> <target-format> [content...] [options]
 
 ```bash
 docflux <source-format> <target-format> [content...] [options]
+docflux list-formats
 ```
 
 ## Arguments
@@ -48,6 +52,9 @@ HTML to Markdown (stdout):
 docflux html markdown "<p>Hello <strong>DocFlux</strong></p>"
 ```
 
+docflux --help
+docflux list-formats
+
 Display help:
 
 ```bash
@@ -61,6 +68,7 @@ docflux list-formats
 ```
 
 ## Release Build Output
+
 
 Running a release build stages CLI runtime artifacts into repository-root `bin/` and writes `bin/docflux.cmd`.
 

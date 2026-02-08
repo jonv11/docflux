@@ -41,7 +41,7 @@ public static class Program
             Description = "Write converted output to file.",
         };
 
-        var root = new RootCommand("DocFlux document format converter.");
+        var root = new RootCommand("docflux document format converter.");
         root.Add(sourceFormatArgument);
         root.Add(targetFormatArgument);
         root.Add(contentArgument);
