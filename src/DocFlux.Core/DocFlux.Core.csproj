@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\DocFlux.Abstractions\DocFlux.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ADFNet.Core" Version="2.0.1-alpha.0.13" />
+    <PackageReference Include="ADFNet.Json" Version="2.0.1-alpha.0.13" />
+    <PackageReference Include="AngleSharp" Version="1.4.0" />
+    <PackageReference Include="Markdig" Version="0.44.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <Description>Core conversion engine and built-in converters for DocFlux.</Description>
+  </PropertyGroup>
+</Project>

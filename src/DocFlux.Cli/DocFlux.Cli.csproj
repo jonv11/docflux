@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\DocFlux.Core\DocFlux.Core.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <IsPackable>true</IsPackable>
+    <ToolCommandName>docflux</ToolCommandName>
+    <PackageId>DocFlux.Cli</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Command-line interface for DocFlux document conversion.</Description>
+    <DocFluxRootBinDir>$(MSBuildProjectDirectory)\..\..\bin\</DocFluxRootBinDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.2" />
+  </ItemGroup>
+
+  <Target Name="CleanRootBinForRelease" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <RemoveDir Directories="$(DocFluxRootBinDir)" />
+  </Target>
+
+  <Target Name="CopyReleaseArtifactsToRootBin" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <MakeDir Directories="$(DocFluxRootBinDir)" />
+
+    <ItemGroup>
+      <DocFluxCliOutputFiles Include="$(TargetDir)*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(DocFluxCliOutputFiles)" DestinationFolder="$(DocFluxRootBinDir)" SkipUnchangedFiles="true" />
+
+    <WriteLinesToFile
+      File="$(DocFluxRootBinDir)docflux.cmd"
+      Overwrite="true"
+      Lines="@echo off&#x0D;&#x0A;dotnet &quot;%~dp0DocFlux.Cli.dll&quot; %*" />
+  </Target>
+</Project>

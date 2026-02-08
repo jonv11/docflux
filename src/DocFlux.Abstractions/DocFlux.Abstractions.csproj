@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Abstractions and contracts for DocFlux format conversion.</Description>
+  </PropertyGroup>
+</Project>

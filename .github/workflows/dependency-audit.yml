@@ -1,0 +1,59 @@
+name: dependency-audit
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore DocFlux.sln
+
+      - name: Audit NuGet vulnerabilities
+        shell: bash
+        run: |
+          dotnet list DocFlux.sln package --vulnerable --include-transitive --format json > vulnerabilities.json
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("vulnerabilities.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          findings = []
+
+          def walk(obj):
+              if isinstance(obj, dict):
+                  vulns = obj.get("vulnerabilities")
+                  if isinstance(vulns, list) and vulns:
+                      findings.extend(vulns)
+                  for value in obj.values():
+                      walk(value)
+              elif isinstance(obj, list):
+                  for item in obj:
+                      walk(item)
+
+          walk(data)
+
+          if findings:
+              print("Vulnerable packages detected:")
+              for vuln in findings:
+                  advisory = vuln.get("advisoryurl", "n/a")
+                  severity = vuln.get("severity", "unknown")
+                  print(f"- severity={severity} advisory={advisory}")
+              sys.exit(1)
+
+          print("No vulnerable packages detected.")
+          PY

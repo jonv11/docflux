@@ -1,0 +1,36 @@
+{
+  "cases": [
+    {
+      "name": "markdown-to-html-rich",
+      "sourceFormat": "markdown",
+      "targetFormat": "html",
+      "input": "cases/markdown-to-html-rich/input.markdown",
+      "expected": "cases/markdown-to-html-rich/expected.html",
+      "comparison": "text"
+    },
+    {
+      "name": "html-to-markdown-rich",
+      "sourceFormat": "html",
+      "targetFormat": "markdown",
+      "input": "cases/html-to-markdown-rich/input.html",
+      "expected": "cases/html-to-markdown-rich/expected.markdown",
+      "comparison": "text"
+    },
+    {
+      "name": "adf-to-markdown-rich",
+      "sourceFormat": "adf",
+      "targetFormat": "markdown",
+      "input": "cases/adf-to-markdown-rich/input.adf",
+      "expected": "cases/adf-to-markdown-rich/expected.markdown",
+      "comparison": "text"
+    },
+    {
+      "name": "markdown-to-adf-rich",
+      "sourceFormat": "markdown",
+      "targetFormat": "adf",
+      "input": "cases/markdown-to-adf-rich/input.markdown",
+      "expected": "cases/markdown-to-adf-rich/expected.adf",
+      "comparison": "json"
+    }
+  ]
+}
