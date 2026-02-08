@@ -1,0 +1,105 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Clean Solution",
+			"type": "shell",
+			"command": "dotnet clean",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Solution",
+			"type": "shell",
+			"command": "dotnet build --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Test Solution",
+			"type": "shell",
+			"command": "dotnet test --no-build --logger \"trx;LogFileName=test_results.trx\"",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "dotnet build -c Release --no-restore",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		}
+	]
+}

@@ -7,7 +7,9 @@
     <PackAsTool>true</PackAsTool>
     <IsPackable>true</IsPackable>
     <ToolCommandName>docflux</ToolCommandName>
-    <PackageId>DocFlux.Cli</PackageId>
+    <PackageId>docflux</PackageId>
+      <AssemblyName>docflux</AssemblyName>
+      <RootNamespace>docflux</RootNamespace>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Command-line interface for DocFlux document conversion.</Description>
     <DocFluxRootBinDir>$(MSBuildProjectDirectory)\..\..\bin\</DocFluxRootBinDir>
@@ -35,6 +37,6 @@
     <WriteLinesToFile
       File="$(DocFluxRootBinDir)docflux.cmd"
       Overwrite="true"
-      Lines="@echo off&#x0D;&#x0A;dotnet &quot;%~dp0DocFlux.Cli.dll&quot; %*" />
+      Lines="@echo off&#x0D;&#x0A;dotnet &quot;%~dp0docflux.dll&quot; %*" />
   </Target>
 </Project>
