@@ -19,7 +19,7 @@ DocFlux currently supports these format ids:
 - `xml`
 - `adf`
 
-See `docs/supported-formats.md` for behavior and fidelity notes per format.
+See [docs/supported-formats.md](docs/supported-formats.md) for behavior and fidelity notes per format.
 
 ## Why DocFlux
 
@@ -38,11 +38,11 @@ src/
 tests/
   DocFlux.Core.Tests/     # adapter, converter, CLI and fixture tests
 docs/
-  README.md
-  architecture.md
-  supported-formats.md
-  cli-usage.md
-  development-guidelines.md
+  [README.md](docs/README.md)
+  [architecture.md](docs/architecture.md)
+  [supported-formats.md](docs/supported-formats.md)
+  [cli-usage.md](docs/cli-usage.md)
+  [development-guidelines.md](docs/development-guidelines.md)
 ```
 
 ## Prerequisites
@@ -91,7 +91,7 @@ List available formats:
 docflux list-formats
 ```
 
-For full CLI details, see `docs/cli-usage.md`.
+For full CLI details, see [docs/cli-usage.md](docs/cli-usage.md).
 
 ## Library Usage
 
