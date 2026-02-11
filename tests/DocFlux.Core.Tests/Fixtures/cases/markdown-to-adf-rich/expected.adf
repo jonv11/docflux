@@ -3,12 +3,11 @@
   "version": 1,
   "content": [
     {
-      "type": "paragraph",
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
       "content": [
-        {
-          "type": "text",
-          "text": "# "
-        },
         {
           "type": "text",
           "text": "Build Notes"
@@ -51,29 +50,52 @@
       ]
     },
     {
-      "type": "paragraph",
+      "type": "orderedList",
+      "attrs": {
+        "order": 1
+      },
       "content": [
         {
-          "type": "text",
-          "text": "1. parser"
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "parser"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "renderer"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
     {
-      "type": "paragraph",
+      "type": "blockquote",
       "content": [
         {
-          "type": "text",
-          "text": "2. renderer"
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "\u003E check deterministic output"
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "check deterministic output"
+            }
+          ]
         }
       ]
     }
