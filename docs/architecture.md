@@ -1,5 +1,7 @@
 # Architecture
 
+Navigation: [Docs Index](README.md) | [Supported Formats](supported-formats.md) | [CLI Usage](cli-usage.md) | [Development Guidelines](development-guidelines.md)
+
 ## Overview
 
 DocFlux uses a library-first architecture with a shared intermediate representation (IR):
@@ -64,3 +66,5 @@ Minimum requirements:
 - `Write` implementation from IR
 - explicit behavior for unsupported constructs (preserve vs degrade)
 - tests (smoke, roundtrip, options, determinism where applicable)
+
+Next: [Supported Formats](supported-formats.md)

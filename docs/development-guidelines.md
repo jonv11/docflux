@@ -1,5 +1,7 @@
 # Development Guidelines
 
+Navigation: [Docs Index](README.md) | [Architecture](architecture.md) | [Supported Formats](supported-formats.md) | [CLI Usage](cli-usage.md)
+
 ## Prerequisites
 
 - .NET SDK 8.0+
@@ -68,3 +70,5 @@ To add a new fixture case:
 - Keep changes small and reviewable.
 - Include tests with each functional change.
 - Update docs when user-visible behavior changes.
+
+Back to start: [Docs Index](README.md)

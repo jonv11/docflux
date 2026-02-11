@@ -1,9 +1,8 @@
 # CLI Usage
 
+Navigation: [Docs Index](README.md) | [Architecture](architecture.md) | [Supported Formats](supported-formats.md) | [Development Guidelines](development-guidelines.md)
 
-docflux command:
-
-docflux <source-format> <target-format> [content...] [options]
+`docflux` command:
 
 ```bash
 docflux <source-format> <target-format> [content...] [options]
@@ -69,7 +68,8 @@ docflux list-formats
 
 ## Release Build Output
 
-
 Running a release build stages CLI runtime artifacts into repository-root `bin/` and writes `bin/docflux.cmd`.
 
 If `bin/` is on `PATH` (Windows), `docflux` can be invoked from any console session.
+
+Next: [Development Guidelines](development-guidelines.md)

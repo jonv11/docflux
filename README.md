@@ -9,6 +9,18 @@ The pipeline is format-agnostic:
 
 `input format -> DocFlux IR -> output format`
 
+## Quick Navigation
+
+- Docs index: [docs/README.md](docs/README.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Supported formats: [docs/supported-formats.md](docs/supported-formats.md)
+- CLI usage: [docs/cli-usage.md](docs/cli-usage.md)
+- Development guidelines: [docs/development-guidelines.md](docs/development-guidelines.md)
+- CLI project README: [src/DocFlux.Cli/README.md](src/DocFlux.Cli/README.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security: [SECURITY.md](SECURITY.md)
+
 ## Status
 
 DocFlux currently supports these format ids:
@@ -30,20 +42,11 @@ See [docs/supported-formats.md](docs/supported-formats.md) for behavior and fide
 
 ## Repository Layout
 
-```text
-src/
-  DocFlux.Abstractions/   # IR types and contracts
-  DocFlux.Core/           # converter, registry, built-in adapters
-  DocFlux.Cli/            # CLI entrypoint and argument handling
-tests/
-  DocFlux.Core.Tests/     # adapter, converter, CLI and fixture tests
-docs/
-  [README.md](docs/README.md)
-  [architecture.md](docs/architecture.md)
-  [supported-formats.md](docs/supported-formats.md)
-  [cli-usage.md](docs/cli-usage.md)
-  [development-guidelines.md](docs/development-guidelines.md)
-```
+- `src/DocFlux.Abstractions/`: IR types and contracts
+- `src/DocFlux.Core/`: converter, registry, built-in adapters
+- `src/DocFlux.Cli/`: CLI entrypoint and argument handling
+- `tests/DocFlux.Core.Tests/`: adapter, converter, CLI and fixture tests
+- `docs/`: project documentation (start at [docs/README.md](docs/README.md))
 
 ## Prerequisites
 

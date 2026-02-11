@@ -1,5 +1,7 @@
 # Supported Formats
 
+Navigation: [Docs Index](README.md) | [Architecture](architecture.md) | [CLI Usage](cli-usage.md) | [Development Guidelines](development-guidelines.md)
+
 DocFlux currently supports five built-in format ids:
 
 - `txt`
@@ -70,3 +72,5 @@ When a source construct has no IR equivalent:
   - `PreserveUnknownNodes`
 
 See tests for exact current behavior per adapter.
+
+Next: [CLI Usage](cli-usage.md)
