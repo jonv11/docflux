@@ -24,9 +24,10 @@ All supported formats can be converted through the common IR pipeline:
 
 ### markdown
 
-- Read: Markdig-based parsing into IR
-- Write: deterministic markdown renderer for core constructs
-- Handles: headings, paragraphs, emphasis/strong, links, lists, code, quotes
+- Read: Markdig-based parsing into IR with `UseAdvancedExtensions()` enabled
+- Write: deterministic markdown renderer for core constructs + extension-friendly output
+- Handles: headings, paragraphs, emphasis/strong/strike, links, lists, code, quotes, tables, underline/sub/sup via HTML tags
+- Task-list checkboxes are preserved as `[ ]` / `[x]` text in list items
 
 ### html
 
@@ -43,8 +44,9 @@ All supported formats can be converted through the common IR pipeline:
 
 ### adf
 
-- Uses `ADFNet.Core` + `ADFNet.Json`
-- Read/write for supported subset with graceful degradation for unsupported ADF nodes/marks
+- Read/write for Jira Cloud ADF core nodes with graceful degradation for unsupported nodes/marks
+- Read handles: paragraph, heading, bullet/ordered lists, blockquote, codeBlock, rule, tables, hardBreak, link/strong/em/code/strike/underline/subsup marks, emoji, mention, date, status, inlineCard
+- Write emits structured ADF nodes (not text fallbacks) for the shared IR subset, including tables and richer inline marks
 - Canonicalized output structure for deterministic tests
 
 ## Fidelity and Degradation

@@ -119,7 +119,7 @@ public sealed class AdapterOptionBehaviorTests
     }
 
     [Fact]
-    public void Adf_Read_UnknownInlineNode_RespectsPreserveUnknownNodes()
+    public void Adf_Read_EmojiNode_IsMappedAsEmojiInline()
     {
         var adapter = new AdfFormatAdapter();
         const string adf = """
@@ -141,9 +141,9 @@ public sealed class AdapterOptionBehaviorTests
         var dropped = adapter.Read(adf.AsSpan(), new FormatReadOptions { PreserveUnknownNodes = false });
 
         var preservedParagraph = Assert.IsType<ParagraphBlock>(Assert.Single(preserved.Blocks));
-        Assert.IsType<UnknownInline>(Assert.Single(preservedParagraph.Inlines));
+        Assert.IsType<EmojiInline>(Assert.Single(preservedParagraph.Inlines));
         var droppedParagraph = Assert.IsType<ParagraphBlock>(Assert.Single(dropped.Blocks));
-        Assert.Empty(droppedParagraph.Inlines);
+        Assert.IsType<EmojiInline>(Assert.Single(droppedParagraph.Inlines));
     }
 
     [Fact]

@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
-using ADFNet.Core.Models;
-using ADFNet.Json;
+using System.Text.Json.Serialization;
 using DocFlux.Abstractions.Contracts;
 using DocFlux.Abstractions.Documents;
 using DocFlux.Core.Internal;
@@ -26,15 +25,6 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         if (string.IsNullOrWhiteSpace(text))
         {
             return new DocDocument([]);
-        }
-
-        try
-        {
-            _ = ADFDocumentJsonDeserializer.FromJson(text);
-        }
-        catch
-        {
-            // Parsing continues with a raw JSON walk to support broader ADF inputs.
         }
 
         try
@@ -68,21 +58,29 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(options);
 
-        var lineEnding = AdapterUtilities.GetLineEnding(options);
-        var adfDocument = new ADFDocument
-        {
-            Content = new List<ADFNode>(),
-        };
-
+        var content = new List<object?>();
         foreach (var block in document.Blocks)
         {
-            foreach (var node in ConvertBlock(block, options, lineEnding))
+            foreach (var node in ConvertBlock(block, options))
             {
-                adfDocument.Content.Add(node);
+                content.Add(node);
             }
         }
 
-        var serialized = ADFDocumentJsonSerializer.ToJson(adfDocument);
+        var root = new Dictionary<string, object?>
+        {
+            ["type"] = "doc",
+            ["version"] = 1,
+            ["content"] = content,
+        };
+
+        var serialized = JsonSerializer.Serialize(
+            root,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            });
         return NormalizeSerializedAdf(serialized);
     }
 
@@ -100,8 +98,84 @@ public sealed class AdfFormatAdapter : IFormatAdapter
             "codeBlock" => new CodeBlock(ExtractCodeText(element), GetCodeLanguage(element)),
             "rule" => new ThematicBreakBlock(),
             "thematicBreak" => new ThematicBreakBlock(),
+            "table" => MapTableBlock(element, options),
             _ => CreateUnknownBlock(element, options),
         };
+    }
+
+    private static TableBlock MapTableBlock(JsonElement tableElement, FormatReadOptions options)
+    {
+        var rows = new List<TableRowBlock>();
+        if (!tableElement.TryGetProperty("content", out var rowNodes) || rowNodes.ValueKind != JsonValueKind.Array)
+        {
+            return new TableBlock(rows);
+        }
+
+        foreach (var rowNode in rowNodes.EnumerateArray())
+        {
+            if (!GetTypeName(rowNode).Equals("tableRow", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var cells = new List<TableCellBlock>();
+            if (rowNode.TryGetProperty("content", out var cellNodes) && cellNodes.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var cellNode in cellNodes.EnumerateArray())
+                {
+                    var cellType = GetTypeName(cellNode);
+                    if (!cellType.Equals("tableCell", StringComparison.Ordinal)
+                        && !cellType.Equals("tableHeader", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var inlines = MapTableCellInlines(cellNode, options);
+                    cells.Add(new TableCellBlock(cellType.Equals("tableHeader", StringComparison.Ordinal), inlines));
+                }
+            }
+
+            rows.Add(new TableRowBlock(cells));
+        }
+
+        return new TableBlock(rows);
+    }
+
+    private static IReadOnlyList<IDocInline> MapTableCellInlines(JsonElement cellElement, FormatReadOptions options)
+    {
+        var inlines = new List<IDocInline>();
+        if (!cellElement.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+        {
+            return inlines;
+        }
+
+        foreach (var child in content.EnumerateArray())
+        {
+            var childType = GetTypeName(child);
+            IReadOnlyList<IDocInline> mapped = childType switch
+            {
+                "paragraph" => MapInlineArray(child, options),
+                "heading" => MapInlineArray(child, options),
+                "codeBlock" => [new InlineCode(ExtractCodeText(child))],
+                "text" => MapInline(child, options),
+                "hardBreak" => [new LineBreakInline()],
+                _ => options.PreserveUnknownNodes ? [CreateUnknownInline(child)] : [],
+            };
+
+            if (mapped.Count == 0)
+            {
+                continue;
+            }
+
+            if (inlines.Count > 0)
+            {
+                inlines.Add(new LineBreakInline());
+            }
+
+            inlines.AddRange(mapped);
+        }
+
+        return inlines;
     }
 
     private static IReadOnlyList<ListItemBlock> MapListItems(JsonElement listElement, FormatReadOptions options)
@@ -173,25 +247,32 @@ public sealed class AdfFormatAdapter : IFormatAdapter
     private static IReadOnlyList<IDocInline> MapInline(JsonElement element, FormatReadOptions options)
     {
         var type = GetTypeName(element);
-        switch (type)
+        return type switch
         {
-            case "text":
-                return MapTextNode(element, options);
-            case "hardBreak":
-                return [new LineBreakInline()];
-            default:
-                if (options.PreserveUnknownNodes)
-                {
-                    return [CreateUnknownInline(element)];
-                }
+            "text" => MapTextNode(element, options),
+            "hardBreak" => [new LineBreakInline()],
+            "emoji" => [MapEmojiNode(element)],
+            "mention" => [MapMentionNode(element)],
+            "date" => [MapDateNode(element)],
+            "status" => [MapStatusNode(element)],
+            "inlineCard" => [MapInlineCardNode(element)],
+            _ => MapUnknownInlineNode(element, options),
+        };
+    }
 
-                if (element.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
-                {
-                    return [new TextRun(text.GetString() ?? string.Empty)];
-                }
-
-                return [];
+    private static IReadOnlyList<IDocInline> MapUnknownInlineNode(JsonElement element, FormatReadOptions options)
+    {
+        if (options.PreserveUnknownNodes)
+        {
+            return [CreateUnknownInline(element)];
         }
+
+        if (element.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
+        {
+            return [new TextRun(text.GetString() ?? string.Empty)];
+        }
+
+        return [];
     }
 
     private static IReadOnlyList<IDocInline> MapTextNode(JsonElement element, FormatReadOptions options)
@@ -204,12 +285,6 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         var unknownMarks = new List<string>();
         if (element.TryGetProperty("marks", out var marks) && marks.ValueKind == JsonValueKind.Array)
         {
-            string? linkHref = null;
-            string? linkTitle = null;
-            var isStrong = false;
-            var isEmphasis = false;
-            var isCode = false;
-
             foreach (var mark in marks.EnumerateArray())
             {
                 var markType = GetTypeName(mark);
@@ -217,54 +292,40 @@ public sealed class AdfFormatAdapter : IFormatAdapter
                 {
                     case "strong":
                     case "bold":
-                        isStrong = true;
+                        inline = new StrongInline([inline]);
                         break;
                     case "em":
                     case "italic":
-                        isEmphasis = true;
+                        inline = new EmphasisInline([inline]);
+                        break;
+                    case "strike":
+                        inline = new StrikethroughInline([inline]);
+                        break;
+                    case "underline":
+                        inline = new UnderlineInline([inline]);
                         break;
                     case "code":
-                        isCode = true;
+                        inline = new InlineCode(AdapterUtilities.RenderInlinePlainText([inline]));
                         break;
                     case "link":
-                        if (mark.TryGetProperty("attrs", out var attrs) && attrs.ValueKind == JsonValueKind.Object)
+                        inline = new LinkInline(
+                            GetAttributeString(mark, "href") ?? string.Empty,
+                            [inline],
+                            GetAttributeString(mark, "title"));
+                        break;
+                    case "subsup":
+                        var subsupType = GetAttributeString(mark, "type");
+                        inline = subsupType switch
                         {
-                            if (attrs.TryGetProperty("href", out var href) && href.ValueKind == JsonValueKind.String)
-                            {
-                                linkHref = href.GetString();
-                            }
-
-                            if (attrs.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String)
-                            {
-                                linkTitle = title.GetString();
-                            }
-                        }
-
+                            "sub" => new SubscriptInline([inline]),
+                            "sup" => new SuperscriptInline([inline]),
+                            _ => inline,
+                        };
                         break;
                     default:
                         unknownMarks.Add(mark.GetRawText());
                         break;
                 }
-            }
-
-            if (isCode)
-            {
-                inline = new InlineCode(text);
-            }
-
-            if (isEmphasis)
-            {
-                inline = new EmphasisInline([inline]);
-            }
-
-            if (isStrong)
-            {
-                inline = new StrongInline([inline]);
-            }
-
-            if (!string.IsNullOrWhiteSpace(linkHref))
-            {
-                inline = new LinkInline(linkHref!, [inline], linkTitle);
             }
         }
 
@@ -286,6 +347,47 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         }
 
         return [inline];
+    }
+
+    private static EmojiInline MapEmojiNode(JsonElement element)
+    {
+        var shortName = GetAttributeString(element, "shortName");
+        var text = GetAttributeString(element, "text");
+        var id = GetAttributeString(element, "id");
+        var fallback = !string.IsNullOrWhiteSpace(text)
+            ? text!
+            : !string.IsNullOrWhiteSpace(shortName)
+                ? shortName!
+                : ":emoji:";
+        return new EmojiInline(shortName ?? fallback, fallback, id, text);
+    }
+
+    private static MentionInline MapMentionNode(JsonElement element)
+    {
+        var id = GetAttributeString(element, "id") ?? string.Empty;
+        var text = GetAttributeString(element, "text") ?? "@unknown";
+        var userType = GetAttributeString(element, "userType");
+        return new MentionInline(id, text, userType);
+    }
+
+    private static DateInline MapDateNode(JsonElement element)
+    {
+        var timestamp = GetAttributeString(element, "timestamp") ?? string.Empty;
+        return new DateInline(timestamp);
+    }
+
+    private static StatusInline MapStatusNode(JsonElement element)
+    {
+        var text = GetAttributeString(element, "text") ?? string.Empty;
+        var color = GetAttributeString(element, "color");
+        var localId = GetAttributeString(element, "localId");
+        return new StatusInline(text, color, localId);
+    }
+
+    private static LinkInline MapInlineCardNode(JsonElement element)
+    {
+        var url = GetAttributeString(element, "url") ?? string.Empty;
+        return new LinkInline(url, [new TextRun(url)], null);
     }
 
     private static UnknownBlock CreateUnknownBlock(JsonElement element, FormatReadOptions options)
@@ -350,6 +452,21 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         return string.Empty;
     }
 
+    private static string? GetAttributeString(JsonElement element, string attributeName)
+    {
+        if (!element.TryGetProperty("attrs", out var attrs) || attrs.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (attrs.TryGetProperty(attributeName, out var value) && value.ValueKind == JsonValueKind.String)
+        {
+            return value.GetString();
+        }
+
+        return null;
+    }
+
     private static string ExtractCodeText(JsonElement element)
     {
         if (!element.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
@@ -388,7 +505,7 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         return "unknown";
     }
 
-    private static IEnumerable<ADFNode> ConvertBlock(IDocBlock block, FormatWriteOptions options, string lineEnding)
+    private static IEnumerable<Dictionary<string, object?>> ConvertBlock(IDocBlock block, FormatWriteOptions options)
     {
         switch (block)
         {
@@ -396,37 +513,33 @@ public sealed class AdfFormatAdapter : IFormatAdapter
                 yield return CreateParagraphNode(paragraph.Inlines, options);
                 yield break;
             case HeadingBlock heading:
-                yield return CreateParagraphNode(
-                    [
-                        new TextRun($"{new string('#', heading.Level)} "),
-                        .. heading.Inlines,
-                    ],
-                    options);
+                yield return CreateHeadingNode(heading, options);
                 yield break;
             case BulletListBlock bulletList:
-                yield return CreateBulletListNode(bulletList, options, lineEnding);
+                yield return CreateBulletListNode(bulletList, options);
                 yield break;
             case OrderedListBlock orderedList:
-                foreach (var item in ConvertOrderedList(orderedList, options))
-                {
-                    yield return item;
-                }
-
+                yield return CreateOrderedListNode(orderedList, options);
                 yield break;
             case CodeBlock codeBlock:
-                yield return CreateCodeParagraph(codeBlock);
+                yield return CreateCodeBlockNode(codeBlock);
                 yield break;
             case QuoteBlock quote:
-                foreach (var quoteNode in ConvertQuote(quote, options, lineEnding))
-                {
-                    yield return quoteNode;
-                }
-
+                yield return CreateQuoteNode(quote, options);
                 yield break;
             case ThematicBreakBlock:
-                yield return CreateParagraphNode([new TextRun("---")], options);
+                yield return CreateNode("rule");
+                yield break;
+            case TableBlock table:
+                yield return CreateTableNode(table, options);
                 yield break;
             case UnknownBlock unknown:
+                if (TryParseUnknownAdfNode(unknown, out var preservedNode))
+                {
+                    yield return preservedNode;
+                    yield break;
+                }
+
                 if (options.EmitUnknownNodesAsPlainText)
                 {
                     var message = $"[Unsupported content omitted: {unknown.OriginalNodeType}]";
@@ -442,100 +555,170 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         }
     }
 
-    private static ParagraphNode CreateParagraphNode(IReadOnlyList<IDocInline> inlines, FormatWriteOptions options)
+    private static Dictionary<string, object?> CreateParagraphNode(IReadOnlyList<IDocInline> inlines, FormatWriteOptions options)
     {
-        var content = new List<ADFNode>();
-        AppendInlines(content, inlines, TextStyle.Default, options);
-        return new ParagraphNode
-        {
-            Content = content,
-        };
+        var content = new List<object?>();
+        AppendInlines(content, inlines, InlineStyle.Default, options);
+        return CreateNode("paragraph", content: content);
     }
 
-    private static ParagraphNode CreateCodeParagraph(CodeBlock codeBlock)
+    private static Dictionary<string, object?> CreateHeadingNode(HeadingBlock heading, FormatWriteOptions options)
     {
-        var content = new List<ADFNode>();
-        var lines = codeBlock.Code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var content = new List<object?>();
+        AppendInlines(content, heading.Inlines, InlineStyle.Default, options);
+        return CreateNode(
+            "heading",
+            attrs: new Dictionary<string, object?> { ["level"] = Math.Clamp(heading.Level, 1, 6) },
+            content: content);
+    }
+
+    private static Dictionary<string, object?> CreateCodeBlockNode(CodeBlock codeBlock)
+    {
+        var content = CreateCodeTextContent(codeBlock.Code);
+        Dictionary<string, object?>? attrs = null;
+        if (!string.IsNullOrWhiteSpace(codeBlock.Language))
+        {
+            attrs = new Dictionary<string, object?>
+            {
+                ["language"] = codeBlock.Language,
+            };
+        }
+
+        return CreateNode("codeBlock", attrs: attrs, content: content);
+    }
+
+    private static List<object?> CreateCodeTextContent(string code)
+    {
+        var content = new List<object?>();
+        var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         for (var index = 0; index < lines.Length; index++)
         {
             if (index > 0)
             {
-                content.Add(new HardBreakNode());
+                content.Add(CreateNode("hardBreak"));
             }
 
-            content.Add(
-                new TextNode
-                {
-                    Text = lines[index],
-                    Code = true,
-                });
+            content.Add(CreateNode("text", text: lines[index]));
         }
 
-        return new ParagraphNode
-        {
-            Content = content,
-        };
+        return content;
     }
 
-    private static BulletListNode CreateBulletListNode(BulletListBlock list, FormatWriteOptions options, string lineEnding)
+    private static Dictionary<string, object?> CreateBulletListNode(BulletListBlock list, FormatWriteOptions options)
     {
-        var items = new List<ListItemNode>();
-        foreach (var item in list.Items)
+        var items = list.Items.Select(item => CreateListItemNode(item, options)).Cast<object?>().ToList();
+        return CreateNode("bulletList", content: items);
+    }
+
+    private static Dictionary<string, object?> CreateOrderedListNode(OrderedListBlock list, FormatWriteOptions options)
+    {
+        var items = list.Items.Select(item => CreateListItemNode(item, options)).Cast<object?>().ToList();
+        var attrs = new Dictionary<string, object?> { ["order"] = list.Start < 1 ? 1 : list.Start };
+        return CreateNode("orderedList", attrs: attrs, content: items);
+    }
+
+    private static Dictionary<string, object?> CreateListItemNode(ListItemBlock item, FormatWriteOptions options)
+    {
+        var content = new List<object?>();
+        foreach (var block in item.Blocks)
         {
-            var content = new List<ADFNode>();
-            foreach (var block in item.Blocks)
+            foreach (var blockNode in ConvertBlock(block, options))
             {
-                foreach (var adfNode in ConvertBlock(block, options, lineEnding))
-                {
-                    content.Add(adfNode);
-                }
+                content.Add(blockNode);
             }
-
-            if (content.Count == 0)
-            {
-                content.Add(
-                    new ParagraphNode
-                    {
-                        Content = [],
-                    });
-            }
-
-            items.Add(
-                new ListItemNode
-                {
-                    Content = content,
-                });
         }
 
-        return new BulletListNode
+        if (content.Count == 0)
         {
-            Items = items,
-        };
-    }
-
-    private static IEnumerable<ADFNode> ConvertOrderedList(OrderedListBlock list, FormatWriteOptions options)
-    {
-        for (var index = 0; index < list.Items.Count; index++)
-        {
-            var label = $"{list.Start + index}. ";
-            var plainText = string.Join(" ", list.Items[index].Blocks.Select(item => AdapterUtilities.RenderBlockPlainText(item, "\n")));
-            yield return CreateParagraphNode([new TextRun(label + plainText)], options);
+            content.Add(CreateNode("paragraph", content: []));
         }
+
+        return CreateNode("listItem", content: content);
     }
 
-    private static IEnumerable<ADFNode> ConvertQuote(QuoteBlock quote, FormatWriteOptions options, string lineEnding)
+    private static Dictionary<string, object?> CreateQuoteNode(QuoteBlock quote, FormatWriteOptions options)
     {
+        var content = new List<object?>();
         foreach (var block in quote.Blocks)
         {
-            var plain = AdapterUtilities.RenderBlockPlainText(block, lineEnding);
-            yield return CreateParagraphNode([new TextRun($"> {plain}")], options);
+            foreach (var blockNode in ConvertBlock(block, options))
+            {
+                content.Add(blockNode);
+            }
         }
+
+        if (content.Count == 0)
+        {
+            content.Add(CreateNode("paragraph", content: []));
+        }
+
+        return CreateNode("blockquote", content: content);
+    }
+
+    private static Dictionary<string, object?> CreateTableNode(TableBlock table, FormatWriteOptions options)
+    {
+        var rows = new List<object?>();
+        foreach (var row in table.Rows)
+        {
+            var cells = new List<object?>();
+            foreach (var cell in row.Cells)
+            {
+                var paragraph = CreateParagraphNode(cell.Inlines, options);
+                var cellContent = new List<object?> { paragraph };
+                cells.Add(CreateNode(cell.IsHeader ? "tableHeader" : "tableCell", content: cellContent));
+            }
+
+            if (cells.Count == 0)
+            {
+                var emptyCellContent = new List<object?> { CreateNode("paragraph", content: []) };
+                cells.Add(CreateNode("tableCell", content: emptyCellContent));
+            }
+
+            rows.Add(CreateNode("tableRow", content: cells));
+        }
+
+        return CreateNode("table", content: rows);
+    }
+
+    private static Dictionary<string, object?> CreateNode(
+        string type,
+        Dictionary<string, object?>? attrs = null,
+        string? text = null,
+        List<Dictionary<string, object?>>? marks = null,
+        List<object?>? content = null)
+    {
+        var node = new Dictionary<string, object?>
+        {
+            ["type"] = type,
+        };
+
+        if (attrs is not null && attrs.Count > 0)
+        {
+            node["attrs"] = attrs;
+        }
+
+        if (text is not null)
+        {
+            node["text"] = text;
+        }
+
+        if (marks is not null && marks.Count > 0)
+        {
+            node["marks"] = marks;
+        }
+
+        if (content is not null)
+        {
+            node["content"] = content;
+        }
+
+        return node;
     }
 
     private static void AppendInlines(
-        List<ADFNode> output,
+        List<object?> output,
         IReadOnlyList<IDocInline> inlines,
-        TextStyle style,
+        InlineStyle style,
         FormatWriteOptions options)
     {
         foreach (var inline in inlines)
@@ -543,31 +726,24 @@ public sealed class AdfFormatAdapter : IFormatAdapter
             switch (inline)
             {
                 case TextRun text:
-                    output.Add(
-                        new TextNode
-                        {
-                            Text = text.Text,
-                            Bold = style.Bold,
-                            Italic = style.Italic,
-                            Strike = style.Strike,
-                            Underline = style.Underline,
-                            Code = style.Code,
-                        });
+                    output.Add(CreateTextNode(text.Text, style));
                     break;
                 case LineBreakInline:
-                    output.Add(new HardBreakNode());
+                    output.Add(CreateNode("hardBreak"));
                     break;
                 case InlineCode code:
-                    output.Add(
-                        new TextNode
-                        {
-                            Text = code.Code,
-                            Bold = style.Bold,
-                            Italic = style.Italic,
-                            Strike = style.Strike,
-                            Underline = style.Underline,
-                            Code = true,
-                        });
+                    output.Add(CreateTextNode(code.Code, style with { Code = true }));
+                    break;
+                case LinkInline link:
+                    if (link.Inlines.Count == 0)
+                    {
+                        output.Add(CreateTextNode(link.Href, style with { LinkHref = link.Href, LinkTitle = link.Title }));
+                    }
+                    else
+                    {
+                        AppendInlines(output, link.Inlines, style with { LinkHref = link.Href, LinkTitle = link.Title }, options);
+                    }
+
                     break;
                 case EmphasisInline emphasis:
                     AppendInlines(output, emphasis.Inlines, style with { Italic = true }, options);
@@ -575,39 +751,226 @@ public sealed class AdfFormatAdapter : IFormatAdapter
                 case StrongInline strong:
                     AppendInlines(output, strong.Inlines, style with { Bold = true }, options);
                     break;
-                case LinkInline link:
-                    var textValue = link.Inlines.Count == 0
-                        ? link.Href
-                        : AdapterUtilities.RenderInlinePlainText(link.Inlines);
-                    output.Add(
-                        new TextNode
-                        {
-                            Text = $"{textValue} ({link.Href})",
-                            Bold = style.Bold,
-                            Italic = style.Italic,
-                            Strike = style.Strike,
-                            Underline = style.Underline,
-                            Code = style.Code,
-                        });
+                case StrikethroughInline strike:
+                    AppendInlines(output, strike.Inlines, style with { Strike = true }, options);
+                    break;
+                case UnderlineInline underline:
+                    AppendInlines(output, underline.Inlines, style with { Underline = true }, options);
+                    break;
+                case SubscriptInline subscript:
+                    AppendInlines(output, subscript.Inlines, style with { SubsupType = "sub" }, options);
+                    break;
+                case SuperscriptInline superscript:
+                    AppendInlines(output, superscript.Inlines, style with { SubsupType = "sup" }, options);
+                    break;
+                case EmojiInline emoji:
+                    output.Add(CreateEmojiNode(emoji));
+                    break;
+                case MentionInline mention:
+                    output.Add(CreateMentionNode(mention));
+                    break;
+                case DateInline date:
+                    output.Add(CreateDateNode(date));
+                    break;
+                case StatusInline status:
+                    output.Add(CreateStatusNode(status));
                     break;
                 case UnknownInline unknown:
-                    if (options.EmitUnknownNodesAsPlainText)
+                    if (TryParseUnknownAdfNode(unknown, out var preservedInline))
                     {
-                        output.Add(
-                            new TextNode
-                            {
-                                Text = $"[Unsupported inline omitted: {unknown.OriginalNodeType}]",
-                                Bold = style.Bold,
-                                Italic = style.Italic,
-                                Strike = style.Strike,
-                                Underline = style.Underline,
-                                Code = style.Code,
-                            });
+                        output.Add(preservedInline);
+                    }
+                    else if (options.EmitUnknownNodesAsPlainText)
+                    {
+                        output.Add(CreateTextNode($"[Unsupported inline omitted: {unknown.OriginalNodeType}]", style));
                     }
 
                     break;
             }
         }
+    }
+
+    private static Dictionary<string, object?> CreateTextNode(string text, InlineStyle style)
+    {
+        var marks = CreateMarks(style);
+        return CreateNode("text", text: text, marks: marks);
+    }
+
+    private static List<Dictionary<string, object?>> CreateMarks(InlineStyle style)
+    {
+        var marks = new List<Dictionary<string, object?>>();
+        if (style.Bold)
+        {
+            marks.Add(CreateNode("strong"));
+        }
+
+        if (style.Italic)
+        {
+            marks.Add(CreateNode("em"));
+        }
+
+        if (style.Strike)
+        {
+            marks.Add(CreateNode("strike"));
+        }
+
+        if (style.Underline)
+        {
+            marks.Add(CreateNode("underline"));
+        }
+
+        if (style.Code)
+        {
+            marks.Add(CreateNode("code"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(style.LinkHref))
+        {
+            var attrs = new Dictionary<string, object?> { ["href"] = style.LinkHref };
+            if (!string.IsNullOrWhiteSpace(style.LinkTitle))
+            {
+                attrs["title"] = style.LinkTitle;
+            }
+
+            marks.Add(CreateNode("link", attrs: attrs));
+        }
+
+        if (!string.IsNullOrWhiteSpace(style.SubsupType))
+        {
+            marks.Add(CreateNode("subsup", attrs: new Dictionary<string, object?> { ["type"] = style.SubsupType }));
+        }
+
+        return marks;
+    }
+
+    private static Dictionary<string, object?> CreateEmojiNode(EmojiInline emoji)
+    {
+        var attrs = new Dictionary<string, object?>
+        {
+            ["shortName"] = string.IsNullOrWhiteSpace(emoji.ShortName) ? emoji.Fallback : emoji.ShortName,
+        };
+        if (!string.IsNullOrWhiteSpace(emoji.Id))
+        {
+            attrs["id"] = emoji.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(emoji.Text))
+        {
+            attrs["text"] = emoji.Text;
+        }
+
+        return CreateNode("emoji", attrs: attrs);
+    }
+
+    private static Dictionary<string, object?> CreateMentionNode(MentionInline mention)
+    {
+        var attrs = new Dictionary<string, object?>
+        {
+            ["id"] = mention.Id,
+            ["text"] = mention.Text,
+        };
+        if (!string.IsNullOrWhiteSpace(mention.UserType))
+        {
+            attrs["userType"] = mention.UserType;
+        }
+
+        return CreateNode("mention", attrs: attrs);
+    }
+
+    private static Dictionary<string, object?> CreateDateNode(DateInline date)
+    {
+        return CreateNode("date", attrs: new Dictionary<string, object?> { ["timestamp"] = date.Value });
+    }
+
+    private static Dictionary<string, object?> CreateStatusNode(StatusInline status)
+    {
+        var attrs = new Dictionary<string, object?>
+        {
+            ["text"] = status.Text,
+        };
+        if (!string.IsNullOrWhiteSpace(status.Color))
+        {
+            attrs["color"] = status.Color;
+        }
+
+        if (!string.IsNullOrWhiteSpace(status.LocalId))
+        {
+            attrs["localId"] = status.LocalId;
+        }
+
+        return CreateNode("status", attrs: attrs);
+    }
+
+    private static bool TryParseUnknownAdfNode(UnknownBlock unknown, out Dictionary<string, object?> node)
+    {
+        if (!unknown.OriginalFormatId.Equals("adf", StringComparison.Ordinal))
+        {
+            node = default!;
+            return false;
+        }
+
+        return TryParseUnknownAdfNode(unknown.RawPayload, out node);
+    }
+
+    private static bool TryParseUnknownAdfNode(UnknownInline unknown, out Dictionary<string, object?> node)
+    {
+        if (!unknown.OriginalFormatId.Equals("adf", StringComparison.Ordinal))
+        {
+            node = default!;
+            return false;
+        }
+
+        return TryParseUnknownAdfNode(unknown.RawPayload, out node);
+    }
+
+    private static bool TryParseUnknownAdfNode(string payload, out Dictionary<string, object?> node)
+    {
+        node = default!;
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty("type", out var type)
+                || type.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            var converted = ConvertJsonElement(doc.RootElement);
+            if (converted is not Dictionary<string, object?> dictionary)
+            {
+                return false;
+            }
+
+            node = dictionary;
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static object? ConvertJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(item => item.Name, item => ConvertJsonElement(item.Value), StringComparer.Ordinal),
+            JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonElement).ToList(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var longValue) => longValue,
+            JsonValueKind.Number => element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.GetRawText(),
+        };
     }
 
     private static string NormalizeSerializedAdf(string json)
@@ -707,13 +1070,24 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         };
     }
 
-    private readonly record struct TextStyle(
+    private readonly record struct InlineStyle(
         bool Bold,
         bool Italic,
         bool Strike,
         bool Underline,
-        bool Code)
+        bool Code,
+        string? LinkHref,
+        string? LinkTitle,
+        string? SubsupType)
     {
-        public static TextStyle Default { get; } = new(false, false, false, false, false);
+        public static InlineStyle Default { get; } = new(
+            false,
+            false,
+            false,
+            false,
+            false,
+            null,
+            null,
+            null);
     }
 }

@@ -105,6 +105,39 @@ public sealed record ThematicBreakBlock : IDocBlock
 {
 }
 
+public sealed record TableBlock : IDocBlock
+{
+    public TableBlock(IReadOnlyList<TableRowBlock> rows)
+    {
+        Rows = rows ?? throw new ArgumentNullException(nameof(rows));
+    }
+
+    public IReadOnlyList<TableRowBlock> Rows { get; }
+}
+
+public sealed record TableRowBlock
+{
+    public TableRowBlock(IReadOnlyList<TableCellBlock> cells)
+    {
+        Cells = cells ?? throw new ArgumentNullException(nameof(cells));
+    }
+
+    public IReadOnlyList<TableCellBlock> Cells { get; }
+}
+
+public sealed record TableCellBlock
+{
+    public TableCellBlock(bool isHeader, IReadOnlyList<IDocInline> inlines)
+    {
+        IsHeader = isHeader;
+        Inlines = inlines ?? throw new ArgumentNullException(nameof(inlines));
+    }
+
+    public bool IsHeader { get; }
+
+    public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
 public sealed record UnknownBlock : IDocBlock
 {
     public UnknownBlock(string originalFormatId, string originalNodeType, string rawPayload)
@@ -179,6 +212,107 @@ public sealed record StrongInline : IDocInline
     }
 
     public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
+public sealed record StrikethroughInline : IDocInline
+{
+    public StrikethroughInline(IReadOnlyList<IDocInline> inlines)
+    {
+        Inlines = inlines ?? throw new ArgumentNullException(nameof(inlines));
+    }
+
+    public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
+public sealed record UnderlineInline : IDocInline
+{
+    public UnderlineInline(IReadOnlyList<IDocInline> inlines)
+    {
+        Inlines = inlines ?? throw new ArgumentNullException(nameof(inlines));
+    }
+
+    public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
+public sealed record SubscriptInline : IDocInline
+{
+    public SubscriptInline(IReadOnlyList<IDocInline> inlines)
+    {
+        Inlines = inlines ?? throw new ArgumentNullException(nameof(inlines));
+    }
+
+    public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
+public sealed record SuperscriptInline : IDocInline
+{
+    public SuperscriptInline(IReadOnlyList<IDocInline> inlines)
+    {
+        Inlines = inlines ?? throw new ArgumentNullException(nameof(inlines));
+    }
+
+    public IReadOnlyList<IDocInline> Inlines { get; }
+}
+
+public sealed record EmojiInline : IDocInline
+{
+    public EmojiInline(string shortName, string fallback, string? id = null, string? text = null)
+    {
+        ShortName = shortName ?? throw new ArgumentNullException(nameof(shortName));
+        Fallback = fallback ?? throw new ArgumentNullException(nameof(fallback));
+        Id = id;
+        Text = text;
+    }
+
+    public string ShortName { get; }
+
+    public string Fallback { get; }
+
+    public string? Id { get; }
+
+    public string? Text { get; }
+}
+
+public sealed record MentionInline : IDocInline
+{
+    public MentionInline(string id, string text, string? userType = null)
+    {
+        Id = id ?? throw new ArgumentNullException(nameof(id));
+        Text = text ?? throw new ArgumentNullException(nameof(text));
+        UserType = userType;
+    }
+
+    public string Id { get; }
+
+    public string Text { get; }
+
+    public string? UserType { get; }
+}
+
+public sealed record DateInline : IDocInline
+{
+    public DateInline(string value)
+    {
+        Value = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    public string Value { get; }
+}
+
+public sealed record StatusInline : IDocInline
+{
+    public StatusInline(string text, string? color = null, string? localId = null)
+    {
+        Text = text ?? throw new ArgumentNullException(nameof(text));
+        Color = color;
+        LocalId = localId;
+    }
+
+    public string Text { get; }
+
+    public string? Color { get; }
+
+    public string? LocalId { get; }
 }
 
 public sealed record UnknownInline : IDocInline

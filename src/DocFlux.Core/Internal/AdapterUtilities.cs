@@ -62,6 +62,10 @@ internal static class AdapterUtilities
                     $"{orderedList.Start + index}. {string.Join(" ", item.Blocks.Select(blockItem => RenderBlockPlainText(blockItem, lineEnding)))}")),
             ListItemBlock listItem => string.Join(" ", listItem.Blocks.Select(item => RenderBlockPlainText(item, lineEnding))),
             ThematicBreakBlock => "---",
+            TableBlock table => string.Join(
+                lineEnding,
+                table.Rows.Select(row =>
+                    string.Join(" | ", row.Cells.Select(cell => RenderInlinePlainText(cell.Inlines))))),
             UnknownBlock unknown => $"[Unsupported {unknown.OriginalFormatId}:{unknown.OriginalNodeType}]",
             _ => string.Empty,
         };
@@ -96,6 +100,30 @@ internal static class AdapterUtilities
                 break;
             case StrongInline strong:
                 builder.Append(RenderInlinePlainText(strong.Inlines));
+                break;
+            case StrikethroughInline strike:
+                builder.Append(RenderInlinePlainText(strike.Inlines));
+                break;
+            case UnderlineInline underline:
+                builder.Append(RenderInlinePlainText(underline.Inlines));
+                break;
+            case SubscriptInline subscript:
+                builder.Append(RenderInlinePlainText(subscript.Inlines));
+                break;
+            case SuperscriptInline superscript:
+                builder.Append(RenderInlinePlainText(superscript.Inlines));
+                break;
+            case EmojiInline emoji:
+                builder.Append(!string.IsNullOrWhiteSpace(emoji.Text) ? emoji.Text : emoji.Fallback);
+                break;
+            case MentionInline mention:
+                builder.Append(mention.Text);
+                break;
+            case DateInline date:
+                builder.Append(date.Value);
+                break;
+            case StatusInline status:
+                builder.Append(status.Text);
                 break;
             case UnknownInline unknown:
                 builder.Append($"[Unsupported {unknown.OriginalFormatId}:{unknown.OriginalNodeType}]");

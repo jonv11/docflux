@@ -43,6 +43,25 @@ public sealed class AdapterStructureAndDeterminismTests
     }
 
     [Fact]
+    public void Markdown_Read_MapsTableAndStrikethrough()
+    {
+        var adapter = new MarkdownFormatAdapter();
+        const string markdown = """
+                                | Name |
+                                | --- |
+                                | ~~value~~ |
+                                """;
+
+        var document = adapter.Read(markdown.AsSpan(), FormatReadOptions.Default);
+
+        var table = Assert.IsType<TableBlock>(Assert.Single(document.Blocks));
+        Assert.Equal(2, table.Rows.Count);
+        var strike = Assert.IsType<StrikethroughInline>(
+            Assert.Single(table.Rows[1].Cells[0].Inlines, inline => inline is StrikethroughInline));
+        Assert.IsType<TextRun>(Assert.Single(strike.Inlines));
+    }
+
+    [Fact]
     public void Html_Read_MapsCodeBlockLanguage()
     {
         var adapter = new HtmlFormatAdapter();
@@ -88,7 +107,7 @@ public sealed class AdapterStructureAndDeterminismTests
     }
 
     [Fact]
-    public void Adf_Read_UnknownMark_ProducesUnknownInlineWhenPreserved()
+    public void Adf_Read_SubsupMark_MapsToSubscriptInline()
     {
         var adapter = new AdfFormatAdapter();
         const string adf = """
@@ -115,9 +134,8 @@ public sealed class AdapterStructureAndDeterminismTests
         var document = adapter.Read(adf.AsSpan(), new FormatReadOptions { PreserveUnknownNodes = true });
 
         var paragraph = Assert.IsType<ParagraphBlock>(Assert.Single(document.Blocks));
-        Assert.Equal(2, paragraph.Inlines.Count);
-        Assert.IsType<TextRun>(paragraph.Inlines[0]);
-        Assert.IsType<UnknownInline>(paragraph.Inlines[1]);
+        var subscript = Assert.IsType<SubscriptInline>(Assert.Single(paragraph.Inlines));
+        Assert.IsType<TextRun>(Assert.Single(subscript.Inlines));
     }
 
     [Fact]
@@ -212,5 +230,32 @@ public sealed class AdapterStructureAndDeterminismTests
 
         Assert.Contains("strong", marks);
         Assert.Contains("em", marks);
+    }
+
+    [Fact]
+    public void Adf_Write_UsesStructuredNodes_ForHeadingListAndQuote()
+    {
+        var adapter = new AdfFormatAdapter();
+        var document = new DocDocument(
+        [
+            new HeadingBlock(2, [new TextRun("Title")]),
+            new OrderedListBlock(
+            [
+                new ListItemBlock([new ParagraphBlock([new TextRun("item")])]),
+            ]),
+            new QuoteBlock([new ParagraphBlock([new TextRun("quoted")])]),
+        ]);
+
+        var adf = adapter.Write(document, FormatWriteOptions.Default);
+        using var json = JsonDocument.Parse(adf);
+        var topLevelTypes = json.RootElement
+            .GetProperty("content")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("type").GetString())
+            .ToArray();
+
+        Assert.Contains("heading", topLevelTypes);
+        Assert.Contains("orderedList", topLevelTypes);
+        Assert.Contains("blockquote", topLevelTypes);
     }
 }
