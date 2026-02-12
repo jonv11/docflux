@@ -1,0 +1,89 @@
+name: codecov-coverage
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: "60.0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore DocFlux.sln
+
+      - name: Build
+        run: dotnet build DocFlux.sln --configuration Release --no-restore
+
+      - name: Test with coverage
+        run: dotnet test DocFlux.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Enforce 60 percent minimum line coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
+
+          threshold = float(os.environ.get("COVERAGE_THRESHOLD", "60.0"))
+          report_paths = sorted(glob.glob("TestResults/**/coverage.cobertura.xml", recursive=True))
+
+          if not report_paths:
+              print("No coverage reports found under TestResults/**/coverage.cobertura.xml")
+              sys.exit(1)
+
+          total_covered = 0
+          total_valid = 0
+
+          for path in report_paths:
+              root = ET.parse(path).getroot()
+              covered_raw = root.attrib.get("lines-covered")
+              valid_raw = root.attrib.get("lines-valid")
+
+              if covered_raw is None or valid_raw is None:
+                  print(f"Coverage file missing required attributes: {path}")
+                  sys.exit(1)
+
+              try:
+                  covered = int(float(covered_raw))
+                  valid = int(float(valid_raw))
+              except ValueError:
+                  print(
+                      f"Invalid coverage attributes in {path}: "
+                      f"lines-covered={covered_raw}, lines-valid={valid_raw}"
+                  )
+                  sys.exit(1)
+
+              total_covered += covered
+              total_valid += valid
+
+          if total_valid <= 0:
+              print("Coverage files reported zero valid lines.")
+              sys.exit(1)
+
+          coverage = (total_covered / total_valid) * 100.0
+          print(f"Aggregate line coverage: {coverage:.2f}% ({total_covered}/{total_valid})")
+          print(f"Coverage threshold: {threshold:.2f}%")
+
+          if coverage < threshold:
+              print(f"Coverage check failed: {coverage:.2f}% is below {threshold:.2f}%")
+              sys.exit(1)
+
+          print("Coverage check passed.")
+          PY
