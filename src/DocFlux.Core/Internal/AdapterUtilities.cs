@@ -10,6 +10,11 @@ internal static class AdapterUtilities
     public static string NormalizeInput(ReadOnlySpan<char> input, FormatReadOptions options)
     {
         var text = input.ToString();
+        if (text.Length > 0 && text[0] == '\uFEFF')
+        {
+            text = text[1..];
+        }
+
         if (!options.NormalizeLineEndings)
         {
             return text;
