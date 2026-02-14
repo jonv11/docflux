@@ -210,6 +210,21 @@ public sealed class AdapterAndConversionTests
         Assert.Equal("doc", json.RootElement.GetProperty("type").GetString());
     }
 
+
+    [Fact]
+    public void Adf_Write_Normalizes_Sh_CodeBlock_Language_To_Bash()
+    {
+        var adapter = new AdfFormatAdapter();
+        var document = new DocDocument([new CodeBlock("echo test", "sh")]);
+
+        var adf = adapter.Write(document, FormatWriteOptions.Default);
+
+        using var json = JsonDocument.Parse(adf);
+        var codeBlock = json.RootElement.GetProperty("content")[0];
+        var language = codeBlock.GetProperty("attrs").GetProperty("language").GetString();
+        Assert.Equal("bash", language);
+    }
+
     [Theory]
     [InlineData("markdown", "adf", "# Hello\n\nText")]
     [InlineData("adf", "markdown", "{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Hello\"}]}]}")]

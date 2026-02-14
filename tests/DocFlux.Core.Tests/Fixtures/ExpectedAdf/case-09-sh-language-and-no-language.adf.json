@@ -1,0 +1,58 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Shell Fence Language"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "attrs": {
+        "language": "bash"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "npm ci"
+        },
+        {
+          "type": "hardBreak"
+        },
+        {
+          "type": "text",
+          "text": "npm test"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "attrs": {
+        "language": "bash"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "echo \u0022with info string\u0022"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "plain output"
+        }
+      ]
+    }
+  ]
+}

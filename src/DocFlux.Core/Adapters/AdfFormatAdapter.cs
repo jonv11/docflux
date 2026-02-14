@@ -575,16 +575,62 @@ public sealed class AdfFormatAdapter : IFormatAdapter
     private static Dictionary<string, object?> CreateCodeBlockNode(CodeBlock codeBlock)
     {
         var content = CreateCodeTextContent(codeBlock.Code);
+        var language = NormalizeCodeBlockLanguage(codeBlock.Language);
         Dictionary<string, object?>? attrs = null;
-        if (!string.IsNullOrWhiteSpace(codeBlock.Language))
+        if (language is not null)
         {
             attrs = new Dictionary<string, object?>
             {
-                ["language"] = codeBlock.Language,
+                ["language"] = language,
             };
         }
 
         return CreateNode("codeBlock", attrs: attrs, content: content);
+    }
+
+    private static string? NormalizeCodeBlockLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var trimmed = language.Trim();
+        var separator = trimmed.IndexOfAny([' ', '\t', '\r', '\n']);
+        var token = separator >= 0 ? trimmed[..separator] : trimmed;
+        if (token.Length == 0)
+        {
+            return null;
+        }
+
+        var normalized = token.ToLowerInvariant() switch
+        {
+            "sh" => "bash",
+            "shell" => "bash",
+            _ => token,
+        };
+
+        return IsValidAdfCodeLanguageToken(normalized) ? normalized : null;
+    }
+
+    private static bool IsValidAdfCodeLanguageToken(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                continue;
+            }
+
+            if (ch is '-' or '_' or '+' or '#' or '.')
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private static List<object?> CreateCodeTextContent(string code)
