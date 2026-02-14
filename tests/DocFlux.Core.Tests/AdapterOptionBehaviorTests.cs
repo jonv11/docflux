@@ -162,4 +162,18 @@ public sealed class AdapterOptionBehaviorTests
         Assert.Contains("Unsupported content omitted", emitted, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported content omitted", omitted, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Adf_Write_RespectsPreferSingleLineOption()
+    {
+        var adapter = new AdfFormatAdapter();
+        var doc = new DocDocument([new ParagraphBlock([new TextRun("compact")])]);
+
+        var pretty = adapter.Write(doc, new FormatWriteOptions { PreferSingleLine = false });
+        var compact = adapter.Write(doc, new FormatWriteOptions { PreferSingleLine = true });
+
+        Assert.Contains('\n', pretty);
+        Assert.DoesNotContain('\n', compact);
+        Assert.Contains("\"type\":\"doc\"", compact, StringComparison.Ordinal);
+    }
 }

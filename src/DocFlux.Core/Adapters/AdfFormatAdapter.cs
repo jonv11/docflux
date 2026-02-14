@@ -78,10 +78,10 @@ public sealed class AdfFormatAdapter : IFormatAdapter
             root,
             new JsonSerializerOptions
             {
-                WriteIndented = true,
+                WriteIndented = !options.PreferSingleLine,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             });
-        return NormalizeSerializedAdf(serialized);
+        return NormalizeSerializedAdf(serialized, !options.PreferSingleLine);
     }
 
     private static IDocBlock MapBlock(JsonElement element, FormatReadOptions options)
@@ -1019,11 +1019,11 @@ public sealed class AdfFormatAdapter : IFormatAdapter
         };
     }
 
-    private static string NormalizeSerializedAdf(string json)
+    private static string NormalizeSerializedAdf(string json, bool indented)
     {
         using var parsed = JsonDocument.Parse(json);
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = indented }))
         {
             WriteCanonicalElement(parsed.RootElement, writer, isRoot: true);
         }

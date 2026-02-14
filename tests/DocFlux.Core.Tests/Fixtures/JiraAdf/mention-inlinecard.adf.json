@@ -1,0 +1,33 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reviewer: "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "557058:9f7e24c5-d8f4-4a21-8ef0-b1942c947111",
+            "text": "@jane.doe",
+            "userType": "APP"
+          }
+        },
+        {
+          "type": "text",
+          "text": " | Spec: "
+        },
+        {
+          "type": "inlineCard",
+          "attrs": {
+            "url": "https://example.atlassian.net/wiki/spaces/DOC/pages/12345/Spec"
+          }
+        }
+      ]
+    }
+  ]
+}

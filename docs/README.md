@@ -7,6 +7,7 @@ This directory contains technical and contributor-facing documentation for DocFl
 - Project overview: [../README.md](../README.md)
 - Architecture: [architecture.md](architecture.md)
 - Supported formats and fidelity notes: [supported-formats.md](supported-formats.md)
+- Jira ADF workflow and limitations: [jira-adf.md](jira-adf.md)
 - CLI reference and examples: [cli-usage.md](cli-usage.md)
 - Development and test workflow: [development-guidelines.md](development-guidelines.md)
 

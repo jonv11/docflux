@@ -71,4 +71,11 @@ To add a new fixture case:
 - Include tests with each functional change.
 - Update docs when user-visible behavior changes.
 
+## Release Process
+
+- Create and push a semantic version tag: `vX.Y.Z`.
+- GitHub Actions workflow `.github/workflows/release.yml` runs build/test, packs NuGet packages, publishes tool/binaries, and pushes Docker images to GHCR.
+- Required repository secret: `NUGET_API_KEY` (NuGet.org publish token).
+- Update `CHANGELOG.md` before tagging.
+
 Back to start: [Docs Index](README.md)

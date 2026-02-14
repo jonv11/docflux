@@ -14,6 +14,7 @@ The pipeline is format-agnostic:
 - Docs index: [docs/README.md](docs/README.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Supported formats: [docs/supported-formats.md](docs/supported-formats.md)
+- Jira ADF workflow guide: [docs/jira-adf.md](docs/jira-adf.md)
 - CLI usage: [docs/cli-usage.md](docs/cli-usage.md)
 - Development guidelines: [docs/development-guidelines.md](docs/development-guidelines.md)
 - CLI project README: [src/DocFlux.Cli/README.md](src/DocFlux.Cli/README.md)
@@ -81,6 +82,20 @@ File-based conversion:
 ```bash
 docflux markdown adf --input-file ./input.md --output-file ./output.adf.json
 ```
+
+Jira workflow (Markdown -> ADF -> Jira REST):
+
+```bash
+docflux markdown adf --input-file ./issue.md --output-file ./issue.adf.json
+curl --request POST \
+  --url "https://your-domain.atlassian.net/rest/api/3/issue" \
+  --user "you@example.com:${JIRA_API_TOKEN}" \
+  --header "Accept: application/json" \
+  --header "Content-Type: application/json" \
+  --data @payload.json
+```
+
+See [docs/jira-adf.md](docs/jira-adf.md) for a complete payload example and unknown-node behavior guidance.
 
 Help:
 

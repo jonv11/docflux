@@ -412,6 +412,12 @@ public sealed class MarkdownToAdfCodeBlockFixturesTests
                     new ExpectedCodeBlock("echo \"with info string\"", "bash"),
                     new ExpectedCodeBlock("plain output", null),
                 ]),
+            new FixtureCase(
+                "case-10-complex-fence-info-attributes",
+                false,
+                [
+                    new ExpectedCodeBlock(JoinLines("echo \"one\"", "echo \"two\""), "bash"),
+                ]),
         ];
     }
 

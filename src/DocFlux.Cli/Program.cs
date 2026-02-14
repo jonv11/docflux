@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using DocFlux.Abstractions.Contracts;
 using DocFlux.Core.Conversion;
 
 namespace DocFlux.Cli;
@@ -41,12 +42,45 @@ public static class Program
             Description = "Write converted output to file.",
         };
 
+        var preserveUnknownOption = new Option<string>("--preserve-unknown")
+        {
+            Description = "Preserve unknown nodes while reading/writing (true|false).",
+            DefaultValueFactory = _ => "true",
+        };
+
+        var emitUnknownAsPlainTextOption = new Option<string>("--emit-unknown-as-plain-text")
+        {
+            Description = "Emit unknown nodes as plain text markers when writing (true|false).",
+            DefaultValueFactory = _ => "true",
+        };
+
+        var lineEndingOption = new Option<string>("--line-ending")
+        {
+            Description = "Output line ending style (lf|crlf).",
+            DefaultValueFactory = _ => "lf",
+        };
+
+        var compactOption = new Option<bool>("--compact")
+        {
+            Description = "Emit compact single-line output when supported.",
+        };
+
+        var prettyOption = new Option<bool>("--pretty")
+        {
+            Description = "Emit pretty indented output when supported.",
+        };
+
         var root = new RootCommand("docflux document format converter.");
         root.Add(sourceFormatArgument);
         root.Add(targetFormatArgument);
         root.Add(contentArgument);
         root.Add(inputFileOption);
         root.Add(outputFileOption);
+        root.Add(preserveUnknownOption);
+        root.Add(emitUnknownAsPlainTextOption);
+        root.Add(lineEndingOption);
+        root.Add(compactOption);
+        root.Add(prettyOption);
         root.Add(CreateListFormatsCommand());
         root.SetAction((ParseResult result) =>
             Execute(
@@ -54,7 +88,12 @@ public static class Program
                 result.GetRequiredValue(targetFormatArgument),
                 result.GetValue(contentArgument) ?? [],
                 result.GetValue(inputFileOption),
-                result.GetValue(outputFileOption)));
+                result.GetValue(outputFileOption),
+                result.GetValue(preserveUnknownOption) ?? "true",
+                result.GetValue(emitUnknownAsPlainTextOption) ?? "true",
+                result.GetValue(lineEndingOption) ?? "lf",
+                result.GetValue(compactOption),
+                result.GetValue(prettyOption)));
 
         return root;
     }
@@ -85,13 +124,42 @@ public static class Program
         string targetFormat,
         IReadOnlyList<string> contentParts,
         string? inputFilePath,
-        string? outputFilePath)
+        string? outputFilePath,
+        string preserveUnknown,
+        string emitUnknownAsPlainText,
+        string lineEnding,
+        bool compact,
+        bool pretty)
     {
         var inlineContent = string.Join(" ", contentParts);
 
         if (!string.IsNullOrWhiteSpace(inlineContent) && !string.IsNullOrWhiteSpace(inputFilePath))
         {
             Console.Error.WriteLine("Provide either inline content or --input-file, not both.");
+            return 1;
+        }
+
+        if (compact && pretty)
+        {
+            Console.Error.WriteLine("Use either --compact or --pretty, not both.");
+            return 1;
+        }
+
+        if (!TryParseBooleanOption(preserveUnknown, out var preserveUnknownNodes))
+        {
+            Console.Error.WriteLine("Invalid value for --preserve-unknown. Use true or false.");
+            return 1;
+        }
+
+        if (!TryParseBooleanOption(emitUnknownAsPlainText, out var emitUnknownNodesAsPlainText))
+        {
+            Console.Error.WriteLine("Invalid value for --emit-unknown-as-plain-text. Use true or false.");
+            return 1;
+        }
+
+        if (!TryParseLineEnding(lineEnding, out var resolvedLineEnding))
+        {
+            Console.Error.WriteLine("Invalid value for --line-ending. Use lf or crlf.");
             return 1;
         }
 
@@ -114,14 +182,35 @@ public static class Program
         }
         else
         {
-            Console.Error.WriteLine("No input content provided. Pass inline content or use --input-file.");
-            return 1;
+            content = Console.In.ReadToEnd();
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                Console.Error.WriteLine("No input content provided. Pass inline content, use --input-file, or pipe stdin.");
+                return 1;
+            }
         }
 
         var converter = new DocFluxConverter();
         try
         {
-            var converted = converter.Convert(content, sourceFormat, targetFormat);
+            var preferSingleLine = compact
+                || (!pretty && targetFormat.Equals("adf", StringComparison.OrdinalIgnoreCase));
+            var conversionOptions = new ConversionOptions
+            {
+                ReadOptions = new FormatReadOptions
+                {
+                    PreserveUnknownNodes = preserveUnknownNodes,
+                },
+                WriteOptions = new FormatWriteOptions
+                {
+                    LineEnding = resolvedLineEnding,
+                    PreferSingleLine = preferSingleLine,
+                    EmitUnknownNodesAsPlainText = emitUnknownNodesAsPlainText,
+                    PreserveUnknownNodes = preserveUnknownNodes,
+                },
+            };
+
+            var converted = converter.Convert(content, sourceFormat, targetFormat, conversionOptions);
             if (!string.IsNullOrWhiteSpace(outputFilePath))
             {
                 try
@@ -145,5 +234,39 @@ public static class Program
             Console.Error.WriteLine(ex.Message);
             return 2;
         }
+    }
+
+    private static bool TryParseBooleanOption(string value, out bool parsed)
+    {
+        parsed = false;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return bool.TryParse(value.Trim(), out parsed);
+    }
+
+    private static bool TryParseLineEnding(string value, out string lineEnding)
+    {
+        lineEnding = "\n";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (value.Equals("lf", StringComparison.OrdinalIgnoreCase))
+        {
+            lineEnding = "\n";
+            return true;
+        }
+
+        if (value.Equals("crlf", StringComparison.OrdinalIgnoreCase))
+        {
+            lineEnding = "\r\n";
+            return true;
+        }
+
+        return false;
     }
 }

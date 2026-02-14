@@ -1,0 +1,127 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve release metadata
+        id: vars
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/docflux"
+
+          {
+            echo "version=$VERSION"
+            echo "image=$IMAGE"
+            echo "docker_tags<<EOF"
+            echo "$IMAGE:$VERSION"
+            if [[ "$VERSION" != *"-"* ]]; then
+              echo "$IMAGE:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore DocFlux.sln
+
+      - name: Build
+        run: dotnet build DocFlux.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test DocFlux.sln --configuration Release --no-build
+
+      - name: Pack NuGet artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts/nuget
+          dotnet pack src/DocFlux.Abstractions/DocFlux.Abstractions.csproj -c Release --no-build -o artifacts/nuget /p:PackageVersion=${{ steps.vars.outputs.version }}
+          dotnet pack src/DocFlux.Core/DocFlux.Core.csproj -c Release --no-build -o artifacts/nuget /p:PackageVersion=${{ steps.vars.outputs.version }}
+          dotnet pack src/DocFlux.Cli/DocFlux.Cli.csproj -c Release --no-build -o artifacts/nuget /p:PackageVersion=${{ steps.vars.outputs.version }}
+
+      - name: Publish NuGet packages
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$NUGET_API_KEY" ]]; then
+            echo "NUGET_API_KEY secret is not configured."
+            exit 1
+          fi
+
+          dotnet nuget push artifacts/nuget/*.nupkg \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Publish single-file CLI binaries
+        shell: bash
+        run: |
+          mkdir -p artifacts/cli
+          for rid in win-x64 linux-x64 osx-x64; do
+            dotnet publish src/DocFlux.Cli/DocFlux.Cli.csproj \
+              --configuration Release \
+              --runtime "$rid" \
+              --self-contained true \
+              /p:PublishSingleFile=true \
+              /p:IncludeNativeLibrariesForSelfExtract=true \
+              --output "artifacts/cli/$rid"
+          done
+
+      - name: Archive CLI binaries
+        shell: bash
+        run: |
+          mkdir -p artifacts/releases
+          VERSION="${{ steps.vars.outputs.version }}"
+
+          (
+            cd artifacts/cli
+            zip -r "../releases/docflux-$VERSION-win-x64.zip" win-x64
+            tar -czf "../releases/docflux-$VERSION-linux-x64.tar.gz" linux-x64
+            tar -czf "../releases/docflux-$VERSION-osx-x64.tar.gz" osx-x64
+          )
+
+          sha256sum artifacts/releases/* > artifacts/releases/SHA256SUMS.txt
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: .github/release-notes-template.md
+          files: |
+            artifacts/nuget/*.nupkg
+            artifacts/releases/*.zip
+            artifacts/releases/*.tar.gz
+            artifacts/releases/SHA256SUMS.txt
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.vars.outputs.docker_tags }}

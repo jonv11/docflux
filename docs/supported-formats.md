@@ -50,6 +50,7 @@ All supported formats can be converted through the common IR pipeline:
 - Read handles: paragraph, heading, bullet/ordered lists, blockquote, codeBlock, rule, tables, hardBreak, link/strong/em/code/strike/underline/subsup marks, emoji, mention, date, status, inlineCard
 - Write emits structured ADF nodes (not text fallbacks) for the shared IR subset, including tables and richer inline marks
 - Canonicalized output structure for deterministic tests
+- Jira usage guide and REST examples: [jira-adf.md](jira-adf.md)
 
 ## Fidelity and Degradation
 
