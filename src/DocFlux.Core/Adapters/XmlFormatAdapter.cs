@@ -129,6 +129,7 @@ public sealed class XmlFormatAdapter : IFormatAdapter
                 "ol",
                 [new XAttribute("start", orderedList.Start.ToString(CultureInfo.InvariantCulture))],
                 orderedList.Items.Select(item => BuildListItemElement(item, options, lineEnding))),
+            TaskListBlock taskList => new XElement("ul", taskList.Items.Select(item => BuildTaskItemElement(item, options, lineEnding))),
             CodeBlock codeBlock => BuildCodeElement(codeBlock),
             QuoteBlock quote => new XElement("blockquote", quote.Blocks.Select(item => BuildElement(item, options, lineEnding))),
             ThematicBreakBlock => new XElement("hr"),
@@ -151,6 +152,24 @@ public sealed class XmlFormatAdapter : IFormatAdapter
     private static XElement BuildListItemElement(ListItemBlock item, FormatWriteOptions options, string lineEnding)
     {
         return new XElement("li", item.Blocks.Select(block => BuildElement(block, options, lineEnding)));
+    }
+
+    private static XElement BuildTaskItemElement(TaskItemBlock item, FormatWriteOptions options, string lineEnding)
+    {
+        var prefix = item.IsChecked ? "[x] " : "[ ] ";
+        if (item.Blocks.Count == 0)
+        {
+            return new XElement("li", prefix);
+        }
+
+        var blocks = item.Blocks.Select(block => BuildElement(block, options, lineEnding)).ToList();
+        if (blocks.Count > 0 && blocks[0] is XElement first && first.Name.LocalName.Equals("p", StringComparison.Ordinal))
+        {
+            first.AddFirst(new XText(prefix));
+            return new XElement("li", blocks);
+        }
+
+        return new XElement("li", new XElement("p", prefix), blocks);
     }
 
     private static IEnumerable<object> BuildInlineNodes(

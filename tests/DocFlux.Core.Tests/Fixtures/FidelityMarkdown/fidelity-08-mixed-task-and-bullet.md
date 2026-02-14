@@ -1,0 +1,2 @@
+- [ ] checkbox line
+- plain bullet line

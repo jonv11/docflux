@@ -1,0 +1,1 @@
+![Architecture](https://example.com/arch.png "Architecture")

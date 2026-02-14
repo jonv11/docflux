@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DocFlux.Cli;
 using DocFlux.Core.Conversion;
+using DocFlux.Core.Tests.Helpers;
 
 namespace DocFlux.Core.Tests;
 
@@ -40,15 +41,19 @@ public sealed class MarkdownBomHandlingTests
         var inputPath = WriteBomPrefixedFile(workspace.DirectoryPath, "input-utf8.md", Utf8Bom, markdown, Encoding.UTF8);
         var outputPath = workspace.PathFor("output-utf8.adf.json");
 
-        var exitCode = Program.Main(
-        [
-            "markdown",
-            "adf",
-            "--input-file",
-            inputPath,
-            "--output-file",
-            outputPath,
-        ]);
+        int exitCode;
+        lock (ConsoleSync.Lock)
+        {
+            exitCode = Program.Main(
+            [
+                "markdown",
+                "adf",
+                "--input-file",
+                inputPath,
+                "--output-file",
+                outputPath,
+            ]);
+        }
 
         Assert.Equal(0, exitCode);
         var adf = File.ReadAllText(outputPath, Encoding.UTF8);
@@ -79,15 +84,19 @@ public sealed class MarkdownBomHandlingTests
         var inputPath = WriteBomPrefixedFile(workspace.DirectoryPath, fileName, bom, markdown, encoding);
         var outputPath = workspace.PathFor("output-utf16.adf.json");
 
-        var exitCode = Program.Main(
-        [
-            "markdown",
-            "adf",
-            "--input-file",
-            inputPath,
-            "--output-file",
-            outputPath,
-        ]);
+        int exitCode;
+        lock (ConsoleSync.Lock)
+        {
+            exitCode = Program.Main(
+            [
+                "markdown",
+                "adf",
+                "--input-file",
+                inputPath,
+                "--output-file",
+                outputPath,
+            ]);
+        }
 
         Assert.Equal(0, exitCode);
         var adf = File.ReadAllText(outputPath, Encoding.UTF8);

@@ -1,0 +1,1 @@
+{"type":"doc","version":1,"content":[{"type":"taskList","attrs":{"localId":"docflux-tasklist-0001"},"content":[{"type":"taskItem","attrs":{"localId":"docflux-taskitem-0001","state":"TODO"},"content":[{"type":"text","text":"draft summary"}]},{"type":"taskItem","attrs":{"localId":"docflux-taskitem-0002","state":"DONE"},"content":[{"type":"text","text":"review checklist"}]}]}]}

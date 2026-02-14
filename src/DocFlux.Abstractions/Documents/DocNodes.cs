@@ -68,6 +68,35 @@ public sealed record OrderedListBlock : IDocBlock
     public int Start { get; }
 }
 
+public sealed record TaskListBlock : IDocBlock
+{
+    public TaskListBlock(IReadOnlyList<TaskItemBlock> items, string? localId = null)
+    {
+        Items = items ?? throw new ArgumentNullException(nameof(items));
+        LocalId = localId;
+    }
+
+    public IReadOnlyList<TaskItemBlock> Items { get; }
+
+    public string? LocalId { get; }
+}
+
+public sealed record TaskItemBlock : IDocBlock
+{
+    public TaskItemBlock(bool isChecked, IReadOnlyList<IDocBlock> blocks, string? localId = null)
+    {
+        IsChecked = isChecked;
+        Blocks = blocks ?? throw new ArgumentNullException(nameof(blocks));
+        LocalId = localId;
+    }
+
+    public bool IsChecked { get; }
+
+    public IReadOnlyList<IDocBlock> Blocks { get; }
+
+    public string? LocalId { get; }
+}
+
 public sealed record ListItemBlock : IDocBlock
 {
     public ListItemBlock(IReadOnlyList<IDocBlock> blocks)

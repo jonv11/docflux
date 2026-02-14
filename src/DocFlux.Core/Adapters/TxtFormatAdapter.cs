@@ -130,6 +130,19 @@ public sealed class TxtFormatAdapter : IFormatAdapter
                 }
 
                 return;
+            case TaskListBlock taskList:
+                for (var i = 0; i < taskList.Items.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        builder.Append(lineEnding);
+                    }
+
+                    builder.Append(taskList.Items[i].IsChecked ? "- [x] " : "- [ ] ");
+                    builder.Append(RenderTaskItem(taskList.Items[i], options, lineEnding));
+                }
+
+                return;
             case CodeBlock codeBlock:
                 builder.Append("```");
                 if (!string.IsNullOrWhiteSpace(codeBlock.Language))
@@ -176,6 +189,17 @@ public sealed class TxtFormatAdapter : IFormatAdapter
     }
 
     private static string RenderListItem(ListItemBlock item, FormatWriteOptions options, string lineEnding)
+    {
+        if (item.Blocks.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var rendered = item.Blocks.Select(block => AdapterUtilities.RenderBlockPlainText(block, lineEnding));
+        return string.Join(" ", rendered).Replace("\n", lineEnding, StringComparison.Ordinal);
+    }
+
+    private static string RenderTaskItem(TaskItemBlock item, FormatWriteOptions options, string lineEnding)
     {
         if (item.Blocks.Count == 0)
         {

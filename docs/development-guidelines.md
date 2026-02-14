@@ -71,6 +71,23 @@ To add a new fixture case:
 - Include tests with each functional change.
 - Update docs when user-visible behavior changes.
 
+## Refactor Checklist
+
+For maintainability-oriented extractions:
+
+- keep public adapter classes thin facades
+- separate parsing and writing responsibilities into focused internal classes
+- keep behavior identical unless the PR explicitly scopes functional changes
+- add direct unit tests for newly extracted classes
+- keep existing regression tests intact
+- run full regression suite after extraction (`dotnet test DocFlux.sln -c Release`)
+
+## Soft Size Targets
+
+- file target: <= ~400 lines
+- method target: <= ~80 lines
+- if a class/method exceeds targets, include rationale in PR notes
+
 ## Release Process
 
 - Create and push a semantic version tag: `vX.Y.Z`.

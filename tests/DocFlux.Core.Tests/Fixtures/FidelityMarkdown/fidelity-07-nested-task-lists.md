@@ -1,0 +1,4 @@
+- [ ] parent task
+  - [x] nested done
+  - [ ] nested open
+- [x] second parent

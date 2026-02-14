@@ -65,6 +65,11 @@ internal static class AdapterUtilities
                 lineEnding,
                 orderedList.Items.Select((item, index) =>
                     $"{orderedList.Start + index}. {string.Join(" ", item.Blocks.Select(blockItem => RenderBlockPlainText(blockItem, lineEnding)))}")),
+            TaskListBlock taskList => string.Join(
+                lineEnding,
+                taskList.Items.Select(item =>
+                    $"{(item.IsChecked ? "- [x] " : "- [ ] ")}{string.Join(" ", item.Blocks.Select(blockItem => RenderBlockPlainText(blockItem, lineEnding)))}")),
+            TaskItemBlock taskItem => string.Join(" ", taskItem.Blocks.Select(item => RenderBlockPlainText(item, lineEnding))),
             ListItemBlock listItem => string.Join(" ", listItem.Blocks.Select(item => RenderBlockPlainText(item, lineEnding))),
             ThematicBreakBlock => "---",
             TableBlock table => string.Join(

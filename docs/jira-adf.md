@@ -87,13 +87,33 @@ echo "hello"
 
 emits ADF with `attrs.language = "bash"`.
 
+## Task Lists (Markdown Checkboxes)
+
+Markdown task syntax maps to Jira task nodes:
+
+```
+- [ ] open task
+- [x] completed task
+```
+
+emits ADF `taskList` with `taskItem`/`blockTaskItem` children and `attrs.state` set to `TODO`/`DONE`.
+
+When `localId` is missing in IR, DocFlux generates deterministic IDs (for example `docflux-tasklist-0001`, `docflux-taskitem-0001`) so repeated conversions remain stable.
+
 ## Jira-Oriented Support Snapshot
 
 Current first-class coverage includes:
 
-- paragraph, heading, lists, blockquote, codeBlock, rule/thematicBreak
+- paragraph, heading, bullet/ordered/task lists, blockquote, codeBlock, rule/thematicBreak
 - tables
 - emoji, mention, date, status, inlineCard (smart link inline form)
 - link/strong/em/code/strike/underline/subsup marks
 
 Common Jira-specific nodes that are not first-class IR nodes in this cycle (for example panel/expand/media-like blocks) are treated as unknown nodes and follow the unknown-node behavior settings above.
+
+## Known Lossiness
+
+This workflow targets normalized content equivalence, not markdown syntax identity:
+
+- markdown reference-link form may round-trip as inline links
+- markdown images are intentionally represented as links for ADF interoperability in this phase

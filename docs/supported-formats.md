@@ -28,8 +28,9 @@ All supported formats can be converted through the common IR pipeline:
 
 - Read: Markdig-based parsing into IR with `UseAdvancedExtensions()` enabled
 - Write: deterministic markdown renderer for core constructs + extension-friendly output
-- Handles: headings, paragraphs, emphasis/strong/strike, links, lists, code, quotes, tables, underline/sub/sup via HTML tags
-- Task-list checkboxes are preserved as `[ ]` / `[x]` text in list items
+- Handles: headings, paragraphs, emphasis/strong/strike, links, bullet/ordered/task lists, code, quotes, tables, underline/sub/sup via HTML tags
+- Markdown images (`![alt](url)`) map to link semantics in IR/ADF output by design (`[alt](url)`)
+- Task-list checkboxes map to first-class task list nodes in IR and ADF
 
 ### html
 
@@ -47,14 +48,20 @@ All supported formats can be converted through the common IR pipeline:
 ### adf
 
 - Read/write for Jira Cloud ADF core nodes with graceful degradation for unsupported nodes/marks
-- Read handles: paragraph, heading, bullet/ordered lists, blockquote, codeBlock, rule, tables, hardBreak, link/strong/em/code/strike/underline/subsup marks, emoji, mention, date, status, inlineCard
+- Read handles: paragraph, heading, bullet/ordered/task lists, blockquote, codeBlock, rule, tables, hardBreak, link/strong/em/code/strike/underline/subsup marks, emoji, mention, date, status, inlineCard
 - Write emits structured ADF nodes (not text fallbacks) for the shared IR subset, including tables and richer inline marks
+- Task list writes include deterministic `localId` generation when IDs are not provided in IR
 - Canonicalized output structure for deterministic tests
 - Jira usage guide and REST examples: [jira-adf.md](jira-adf.md)
 
 ## Fidelity and Degradation
 
 DocFlux preserves fidelity for common shared constructs across formats.
+
+For Markdown/ADF round trips, the guaranteed target is normalized semantic equivalence:
+
+- `markdown -> adf -> markdown -> adf` should be idempotent at canonical JSON level
+- markdown syntax form can be normalized (for example reference links can become inline links)
 
 When a source construct has no IR equivalent:
 

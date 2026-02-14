@@ -1,12 +1,11 @@
 using System.Text;
 using DocFlux.Cli;
+using DocFlux.Core.Tests.Helpers;
 
 namespace DocFlux.Core.Tests;
 
 public sealed class CliProgramIntegrationTests
 {
-    private static readonly object ConsoleLock = new();
-
     [Fact]
     public void Main_InlineConversionToOutputFile_WritesConvertedContent()
     {
@@ -87,7 +86,7 @@ public sealed class CliProgramIntegrationTests
         var outputPath = workspace.PathFor("out.html");
 
         int exitCode;
-        lock (ConsoleLock)
+        lock (ConsoleSync.Lock)
         {
             var originalIn = Console.In;
             Console.SetIn(new StringReader("# Stdin Title"));
@@ -116,7 +115,7 @@ public sealed class CliProgramIntegrationTests
     public void Main_ReturnsValidationError_WhenStdInIsEmpty()
     {
         int exitCode;
-        lock (ConsoleLock)
+        lock (ConsoleSync.Lock)
         {
             var originalIn = Console.In;
             Console.SetIn(new StringReader("  \r\n  "));
@@ -312,7 +311,7 @@ public sealed class CliProgramIntegrationTests
     public void Main_ListFormatsCommand_PrintsKnownFormats()
     {
         string output;
-        lock (ConsoleLock)
+        lock (ConsoleSync.Lock)
         {
             var originalOut = Console.Out;
             using var writer = new StringWriter();
