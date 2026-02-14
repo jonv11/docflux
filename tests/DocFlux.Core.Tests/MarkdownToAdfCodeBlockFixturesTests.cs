@@ -404,6 +404,14 @@ public sealed class MarkdownToAdfCodeBlockFixturesTests
                 [
                     new ExpectedCodeBlock(BuildLargeCodePayload(), "txt"),
                 ]),
+            new FixtureCase(
+                "case-09-sh-language-and-no-language",
+                false,
+                [
+                    new ExpectedCodeBlock(JoinLines("npm ci", "npm test"), "bash"),
+                    new ExpectedCodeBlock("echo \"with info string\"", "bash"),
+                    new ExpectedCodeBlock("plain output", null),
+                ]),
         ];
     }
 

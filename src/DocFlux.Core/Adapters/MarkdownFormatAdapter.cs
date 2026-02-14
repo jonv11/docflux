@@ -84,7 +84,7 @@ public sealed class MarkdownFormatAdapter : IFormatAdapter
             Table table => MapTableBlock(table, source, options),
             MdFencedCodeBlock fencedCode => new CodeBlock(
                 fencedCode.Lines.ToString() ?? string.Empty,
-                fencedCode.Info?.ToString()),
+                ParseFenceLanguage(fencedCode.Info?.ToString())),
             MdCodeBlock code => new CodeBlock(code.Lines.ToString() ?? string.Empty),
             MdQuoteBlock quote => new QuoteBlock(
                 quote.OfType<MdBlock>().Select(item => MapBlock(item, source, options)).ToList()),
@@ -357,6 +357,19 @@ public sealed class MarkdownFormatAdapter : IFormatAdapter
 
         var length = span.End - span.Start + 1;
         return source.Substring(span.Start, length);
+    }
+
+    private static string? ParseFenceLanguage(string? info)
+    {
+        if (string.IsNullOrWhiteSpace(info))
+        {
+            return null;
+        }
+
+        var trimmed = info.Trim();
+        var separator = trimmed.IndexOfAny([' ', '\t', '\r', '\n']);
+        var language = separator >= 0 ? trimmed[..separator] : trimmed;
+        return language.Length == 0 ? null : language;
     }
 
     private static string RenderBlock(IDocBlock block, FormatWriteOptions options, string lineEnding)
