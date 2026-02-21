@@ -466,20 +466,82 @@ internal sealed class MarkdownReader
 
     private static IReadOnlyList<IDocInline> NormalizeAdjacentTextRuns(IReadOnlyList<IDocInline> inlines)
     {
-        var normalized = new List<IDocInline>(inlines.Count);
-        foreach (var inline in inlines)
+        // recursive normalization: strip out any zero-length text runs and merge
+        // adjacent runs, not only at the top level but also within wrapper
+        // inlines such as emphasis/link/etc. this guards against parser
+        // artifacts leaking into adapters and snapshots.
+        List<IDocInline> FilterAndNormalize(IReadOnlyList<IDocInline> list)
         {
-            if (inline is TextRun text
-                && normalized.Count > 0
-                && normalized[^1] is TextRun previous)
+            var filtered = list.Where(i => !(i is TextRun t && t.Text.Length == 0)).ToList();
+            var result = new List<IDocInline>(filtered.Count);
+            foreach (var inline in filtered)
             {
-                normalized[^1] = new TextRun(previous.Text + text.Text);
-                continue;
+                IDocInline current = inline;
+                switch (inline)
+                {
+                    case LinkInline link:
+                        var normLinkChildren = FilterAndNormalize(link.Inlines);
+                        if (normLinkChildren != link.Inlines)
+                        {
+                            current = new LinkInline(link.Href, normLinkChildren, link.Title);
+                        }
+                        break;
+                    case EmphasisInline emphasis:
+                        var normEm = FilterAndNormalize(emphasis.Inlines);
+                        if (normEm != emphasis.Inlines)
+                        {
+                            current = new EmphasisInline(normEm);
+                        }
+                        break;
+                    case StrongInline strong:
+                        var normStrong = FilterAndNormalize(strong.Inlines);
+                        if (normStrong != strong.Inlines)
+                        {
+                            current = new StrongInline(normStrong);
+                        }
+                        break;
+                    case StrikethroughInline strike:
+                        var normStrike = FilterAndNormalize(strike.Inlines);
+                        if (normStrike != strike.Inlines)
+                        {
+                            current = new StrikethroughInline(normStrike);
+                        }
+                        break;
+                    case UnderlineInline underline:
+                        var normUnder = FilterAndNormalize(underline.Inlines);
+                        if (normUnder != underline.Inlines)
+                        {
+                            current = new UnderlineInline(normUnder);
+                        }
+                        break;
+                    case SubscriptInline subscript:
+                        var normSub = FilterAndNormalize(subscript.Inlines);
+                        if (normSub != subscript.Inlines)
+                        {
+                            current = new SubscriptInline(normSub);
+                        }
+                        break;
+                    case SuperscriptInline superscript:
+                        var normSup = FilterAndNormalize(superscript.Inlines);
+                        if (normSup != superscript.Inlines)
+                        {
+                            current = new SuperscriptInline(normSup);
+                        }
+                        break;
+                }
+
+                if (current is TextRun text && result.Count > 0 && result[^1] is TextRun previous)
+                {
+                    result[^1] = new TextRun(previous.Text + text.Text);
+                    continue;
+                }
+
+                result.Add(current);
             }
 
-            normalized.Add(inline);
+            return result;
         }
 
-        return normalized;
+        return FilterAndNormalize(inlines);
     }
 }

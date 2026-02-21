@@ -83,4 +83,92 @@ public sealed class MarkdownReaderTests
         var label = Assert.IsType<TextRun>(Assert.Single(link.Inlines));
         Assert.Equal("logo", label.Text);
     }
+
+    [Fact]
+    public void Read_EmptyTextRunsAreDropped()
+    {
+        // some parser versions emit empty TextRun instances around formatted segments
+        // (especially inside tables). the reader should normalize these away so that
+        // downstream adapters and snapshot tests remain stable.
+        var reader = new MarkdownReader();
+        var markdown = FixtureIO.ReadFixture(
+            "FidelityMarkdown",
+            "fidelity-16-jira-comment-composite.md");
+
+        var document = reader.Read(markdown.AsSpan(), FormatReadOptions.Default);
+
+        var cells = document.Blocks
+            .OfType<TableBlock>()
+            .SelectMany(tb => tb.Rows)
+            .SelectMany(r => r.Cells)
+            .ToList();
+
+        // dump inline structure for debugging purposes
+        foreach (var cell in cells)
+        {
+            Console.WriteLine("Cell inlines:");
+            foreach (var inline in cell.Inlines)
+            {
+                DescribeInline(inline, 1);
+            }
+        }
+
+        bool hasEmpty = cells
+            .SelectMany(c => c.Inlines)
+            .OfType<TextRun>()
+            .Any(t => t.Text.Length == 0);
+        Assert.False(hasEmpty, "Empty text runs should have been removed");
+
+        // now feed into writer and inspect what nodes it actually creates; this is
+        // where we saw extraneous empty text nodes in CLI output.
+        var writer = new DocFlux.Core.Adapters.Adf.AdfWriter(
+            new DocFlux.Core.Adapters.Adf.AdfUnknownNodeParser(),
+            new DocFlux.Core.Adapters.Adf.AdfCanonicalizer());
+        var createParagraphMethod = typeof(DocFlux.Core.Adapters.Adf.AdfWriter)
+            .GetMethod("CreateParagraphNode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(createParagraphMethod);
+        foreach (var cell in cells)
+        {
+            var result = createParagraphMethod.Invoke(writer, new object[] { cell.Inlines, FormatWriteOptions.Default });
+            var dict = Assert.IsType<Dictionary<string, object?>>(result);
+            Console.WriteLine("Writer produced paragraph content for cell:");
+            if (dict.TryGetValue("content", out var o) && o is List<object?> contentList)
+            {
+                foreach (var item in contentList)
+                {
+                    Console.WriteLine(item == null ? "  <null>" : item.ToString());
+                }
+            }
+        }
+
+        static void DescribeInline(IDocInline inline, int indent)
+        {
+            var pad = new string(' ', indent * 2);
+            switch (inline)
+            {
+                case TextRun t:
+                    Console.WriteLine($"{pad}TextRun('{t.Text}')");
+                    break;
+                case LinkInline l:
+                    Console.WriteLine($"{pad}Link(href={l.Href})");
+                    foreach (var child in l.Inlines) DescribeInline(child, indent + 1);
+                    break;
+                case EmphasisInline e:
+                    Console.WriteLine($"{pad}Emphasis");
+                    foreach (var child in e.Inlines) DescribeInline(child, indent + 1);
+                    break;
+                case StrongInline s:
+                    Console.WriteLine($"{pad}Strong");
+                    foreach (var child in s.Inlines) DescribeInline(child, indent + 1);
+                    break;
+                case StrikethroughInline s:
+                    Console.WriteLine($"{pad}Strikethrough");
+                    foreach (var child in s.Inlines) DescribeInline(child, indent + 1);
+                    break;
+                default:
+                    Console.WriteLine($"{pad}{inline.GetType().Name}");
+                    break;
+            }
+        }
+    }
 }
