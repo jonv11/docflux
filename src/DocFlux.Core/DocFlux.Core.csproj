@@ -4,7 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.4.0" />
-    <PackageReference Include="Markdig" Version="0.45.0" />
+    <PackageReference Include="Markdig" Version="1.1.3" />
   </ItemGroup>
   <PropertyGroup>
     <Description>Core conversion engine and built-in converters for DocFlux.</Description>
